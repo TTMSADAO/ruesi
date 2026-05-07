@@ -4,51 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ruesi Pose Challenge - Sadao Hospital</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="start-overlay" class="overlay">
-        <div class="overlay-card">
-            <div class="icon-large">🧘‍♂️👥</div>
+        <div class="overlay-card glass-panel">
+            <div class="icon-large">🧘‍♂️✨</div>
             <h2>Ruesi Pose Multiplayer</h2>
             <p>กลุ่มงานการแพทย์แผนไทยและการแพทย์ทางเลือก<br>โรงพยาบาลสะเดา</p>
             <div class="instruction-list">
-                <p>✅ รองรับสูงสุด 4 คน (แข่งกันทำคะแนน)</p>
-                <p>✅ ดูรูป "ท่าต้นแบบ" ที่มุมขวาบน</p>
-                <p>✅ ทำท่าตามและค้างไว้ 3 วินาที</p>
-                <p>💡 คำแนะนำ: ใช้รูปเจ้าหน้าที่ รพ. มาเป็นท่าต้นแบบได้ในอนาคต</p>
+                <p><span>👥</span> แข่งขันพร้อมกันได้สูงสุด 4 คน</p>
+                <p><span>📱</span> ดูรูป "ท่าต้นแบบ" ที่มุมขวาบน</p>
+                <p><span>⏱️</span> ทำท่าตามและค้างไว้ 3 วินาที</p>
             </div>
             <button id="btn-start" class="btn-primary" disabled>กำลังโหลด AI Engine...</button>
         </div>
     </div>
 
     <div class="app-container">
-        <header class="app-header">
+        <header class="app-header glass-panel">
             <div class="logo">
-                <span class="logo-icon">🌿</span>
+                <div class="logo-icon-bg"><span class="logo-icon">🌿</span></div>
                 <div class="logo-text">
                     <h1>ฤๅษีดัดตน Challenge</h1>
-                    <span>แข่งจับท่าทาง (Multiplayer)</span>
+                    <span>ระบบจับท่าทาง AI อัจฉริยะ</span>
                 </div>
             </div>
-            <button id="btn-sound" class="btn-icon">🔊</button>
+            <button id="btn-sound" class="btn-icon glass-btn">🔊</button>
         </header>
 
         <main class="game-area">
-            <div class="camera-container" id="camera-container">
+            <div class="camera-container glass-panel" id="camera-container">
                 <video id="input_video" autoplay playsinline muted></video>
                 <canvas id="output_canvas"></canvas>
                 
-                <div id="pose-guide" class="pose-guide hidden">
+                <div id="pose-guide" class="pose-guide glass-panel hidden">
                     <div class="timer-bar"><div id="timer-fill" class="timer-fill"></div></div>
                     <img id="pose-image" src="" alt="Pose Reference">
                     <div class="pose-info">
-                        <h3 id="pose-name">ชื่อท่า</h3>
-                        <p id="pose-desc">คำอธิบาย</p>
+                        <h3 id="pose-name">เตรียมพร้อม</h3>
+                        <p id="pose-desc">กำลังสุ่มท่าทาง...</p>
                     </div>
                 </div>
 
-                <div id="status-banner" class="status-banner">
+                <div id="status-banner" class="status-banner glass-panel">
                     <span id="status-text">รอการตรวจจับร่างกาย...</span>
                 </div>
             </div>
