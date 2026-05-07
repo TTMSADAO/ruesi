@@ -5,21 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ruesi Pose Challenge - Sadao Hospital</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <div id="start-overlay" class="overlay">
         <div class="overlay-card">
-            <div class="icon-large">🧘‍♂️</div>
-            <h2>Ruesi Pose Challenge</h2>
+            <div class="icon-large">🧘‍♂️👥</div>
+            <h2>Ruesi Pose Multiplayer</h2>
             <p>กลุ่มงานการแพทย์แผนไทยและการแพทย์ทางเลือก<br>โรงพยาบาลสะเดา</p>
             <div class="instruction-list">
-                <p>✅ เปิดใช้งานกล้อง</p>
-                <p>✅ ยืนห่างให้เห็นเต็มตัว</p>
-                <p>✅ ทำท่าทางค้างไว้ 3 วินาที</p>
+                <p>✅ รองรับสูงสุด 4 คน (แข่งกันทำคะแนน)</p>
+                <p>✅ ดูรูป "ท่าต้นแบบ" ที่มุมขวาบน</p>
+                <p>✅ ทำท่าตามและค้างไว้ 3 วินาที</p>
+                <p>💡 คำแนะนำ: ใช้รูปเจ้าหน้าที่ รพ. มาเป็นท่าต้นแบบได้ในอนาคต</p>
             </div>
-            <button id="btn-start" class="btn-primary">เริ่มต้นทดสอบ</button>
+            <button id="btn-start" class="btn-primary" disabled>กำลังโหลด AI Engine...</button>
         </div>
     </div>
 
@@ -29,7 +28,7 @@
                 <span class="logo-icon">🌿</span>
                 <div class="logo-text">
                     <h1>ฤๅษีดัดตน Challenge</h1>
-                    <span>คะแนนสะสม: <strong id="score-display">0</strong></span>
+                    <span>แข่งจับท่าทาง (Multiplayer)</span>
                 </div>
             </div>
             <button id="btn-sound" class="btn-icon">🔊</button>
@@ -40,6 +39,15 @@
                 <video id="input_video" autoplay playsinline muted></video>
                 <canvas id="output_canvas"></canvas>
                 
+                <div id="pose-guide" class="pose-guide hidden">
+                    <div class="timer-bar"><div id="timer-fill" class="timer-fill"></div></div>
+                    <img id="pose-image" src="" alt="Pose Reference">
+                    <div class="pose-info">
+                        <h3 id="pose-name">ชื่อท่า</h3>
+                        <p id="pose-desc">คำอธิบาย</p>
+                    </div>
+                </div>
+
                 <div id="status-banner" class="status-banner">
                     <span id="status-text">รอการตรวจจับร่างกาย...</span>
                 </div>
@@ -47,6 +55,6 @@
         </main>
     </div>
 
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
