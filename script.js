@@ -1,238 +1,213 @@
+// --- การตั้งค่าตัวแปรอ้างอิง UI ---
 const videoElement = document.getElementById('input_video');
 const canvasElement = document.getElementById('output_canvas');
 const canvasCtx = canvasElement.getContext('2d');
-const scoreDisplay = document.getElementById('score');
-const holdTimerDisplay = document.getElementById('hold-timer');
-const posOverlay = document.getElementById('position-overlay');
-const videoWrapper = document.querySelector('.video-wrapper');
-const posInstructionText = document.getElementById('pos-instruction-text');
-const posInstructionBanner = document.getElementById('position-instruction');
+const scoreDisplay = document.getElementById('score-display');
+const statusBanner = document.getElementById('status-banner');
+const statusText = document.getElementById('status-text');
+const cameraContainer = document.getElementById('camera-container');
 
-// Audio elements
-const bgMusic = document.getElementById('bg-music');
-const startChime = document.getElementById('start-chime');
-const successSound = document.getElementById('success-sound');
-let isSoundOn = true;
-
-// Game State
+// --- สถานะเกม ---
 let score = 0;
-let isGameRunning = false;
-let isDetectedBody = false;
+let isSoundOn = true;
+let isHoldingPose = false;
+let holdStartTime = 0;
+const HOLD_DURATION = 3000; // ต้องค้างท่า 3 วินาที (3000 ms)
 
-// ท่าฤๅษีดัดตนที่ต้องการตรวจสอบ (ตัวอย่าง: ท่าชูมือ)
-const POSE_TYPE = {
-    RAISE_HANDS: 'RAISE_HANDS' // ชูมือสองข้างเหนือจมูก
-};
+// --- ระบบเสียงสังเคราะห์ (ไม่ต้องใช้ไฟล์ .mp3) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playTone(frequency, type, duration) {
+    if (!isSoundOn) return;
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + duration);
+}
+// เสียงเตือนต่างๆ
+function soundTick() { playTone(600, 'sine', 0.1); }
+function soundSuccess() { 
+    playTone(523.25, 'sine', 0.1); // C5
+    setTimeout(() => playTone(659.25, 'sine', 0.1), 100); // E5
+    setTimeout(() => playTone(783.99, 'sine', 0.3), 200); // G5
+}
 
-let currentPoseType = POSE_TYPE.RAISE_HANDS;
-let isHoldingCurrentPose = false;
-let currentTimeHoldingMsec = 0; // มิลลิวินาที
-const REQUIRED_HOLD_TIME_MSEC = 3000; // 3 วินาที
+// --- ฟังก์ชันอัปเดต UI ---
+function setStatus(text, type = '') {
+    statusText.innerText = text;
+    statusBanner.className = 'status-banner ' + type;
+    cameraContainer.className = 'camera-container ' + (type === 'success' ? 'ready' : (type === 'warning' ? 'error' : ''));
+}
 
-// ฟังก์ชันเมื่อ MediaPipe ประมวลผลเสร็จสิ้น
+// --- การประมวลผล MediaPipe AI ---
 function onResults(results) {
-    if (!isGameRunning) return;
-
-    // ปรับขนาดพื้นที่วาดให้พอดีกับความละเอียดจริงของกล้อง
-    if (videoElement.videoWidth) {
-        canvasElement.width = videoElement.videoWidth;
-        canvasElement.height = videoElement.videoHeight;
-    }
+    // ปรับขนาด Canvas ให้พอดีกับ Video เสมอ
+    canvasElement.width = videoElement.clientWidth;
+    canvasElement.height = videoElement.clientHeight;
 
     canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
     if (results.poseLandmarks) {
-        // วาดจุดร่างกาย
-        drawPose(results.poseLandmarks);
-        
-        // 1. วิเคราะห์ตำแหน่งและทิศทาง (Proximity & Center)
-        isDetectedBody = providePositionFeedback(results.poseLandmarks);
-
-        // 2. ถ้าตรวจจับได้สมบูรณ์ (Ready)
-        if (isDetectedBody) {
-            updateUIReady();
-
-            // 3. ตรวจสอบเงื่อนไขท่าทางฤๅษีดัดตน
-            const isPoseCorrect = checkPoseConditions(results.poseLandmarks, currentPoseType);
-            
-            // 4. การจัดการค้างท่า (Hold Logic)
-            handleHoldLogic(isPoseCorrect, results.image);
-        } else {
-            updateUINotReady();
-        }
+        drawSkeleton(results.poseLandmarks);
+        analyzePose(results.poseLandmarks);
     } else {
-        updateUINotReady();
+        setStatus("ไม่พบร่างกาย กรุณาเข้ากล้อง", "warning");
+        resetHold();
     }
     canvasCtx.restore();
 }
 
-function drawPose(landmarks) {
-    canvasCtx.fillStyle = "#FFD700"; // จุดสีเหลืองทอง
-    canvasCtx.strokeStyle = "#FFFFFF"; // ขอบจุดสีขาว
-    canvasCtx.lineWidth = 2;
+// --- วาดโครงร่างร่างกาย ---
+function drawSkeleton(landmarks) {
+    canvasCtx.fillStyle = "#ffffff";
+    canvasCtx.strokeStyle = "#4a90e2";
+    canvasCtx.lineWidth = 4;
 
-    landmarks.forEach(point => {
-        canvasCtx.beginPath();
-        canvasCtx.arc(point.x * canvasElement.width, point.y * canvasElement.height, 5, 0, 2 * Math.PI);
-        canvasCtx.fill();
-        canvasCtx.stroke();
+    // เส้นเชื่อมข้อต่อหลัก (แขนและไหล่)
+    const connections = [
+        [11, 12], [11, 13], [13, 15], [12, 14], [14, 16], // แขนและไหล่
+        [11, 23], [12, 24], [23, 24] // ลำตัว
+    ];
+
+    connections.forEach(([i, j]) => {
+        const p1 = landmarks[i]; const p2 = landmarks[j];
+        if (p1.visibility > 0.5 && p2.visibility > 0.5) {
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(p1.x * canvasElement.width, p1.y * canvasElement.height);
+            canvasCtx.lineTo(p2.x * canvasElement.width, p2.y * canvasElement.height);
+            canvasCtx.stroke();
+        }
+    });
+
+    // วาดจุดข้อต่อ
+    landmarks.forEach((point, index) => {
+        if (point.visibility > 0.5 && (index > 10)) { // วาดตั้งแต่ไหล่ลงไป
+            canvasCtx.beginPath();
+            canvasCtx.arc(point.x * canvasElement.width, point.y * canvasElement.height, 6, 0, 2 * Math.PI);
+            canvasCtx.fill();
+            canvasCtx.stroke();
+        }
     });
 }
 
-// 1. วิเคราะห์ตำแหน่ง: ออกห่าง เข้าใกล้ ซ้าย ขวา
-function providePositionFeedback(landmarks) {
+// --- วาดวงแหวนจับเวลา (Progress Ring) ---
+function drawProgressRing(x, y, progress) {
+    const radius = 50;
+    const centerX = x * canvasElement.width;
+    const centerY = y * canvasElement.height;
+
+    // วงแหวนพื้นหลัง
+    canvasCtx.beginPath();
+    canvasCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    canvasCtx.strokeStyle = 'rgba(255,255,255,0.3)';
+    canvasCtx.lineWidth = 10;
+    canvasCtx.stroke();
+
+    // วงแหวนความคืบหน้า (สีเขียว)
+    canvasCtx.beginPath();
+    canvasCtx.arc(centerX, centerY, radius, -Math.PI / 2, (-Math.PI / 2) + (2 * Math.PI * progress));
+    canvasCtx.strokeStyle = '#4CAF50';
+    canvasCtx.lineCap = 'round';
+    canvasCtx.lineWidth = 10;
+    canvasCtx.stroke();
+
+    // ข้อความวินาทีตรงกลาง
+    canvasCtx.fillStyle = '#FFF';
+    canvasCtx.font = 'bold 24px Arial';
+    canvasCtx.textAlign = 'center';
+    canvasCtx.textBaseline = 'middle';
+    canvasCtx.fillText(`${Math.ceil(progress * 3)}s`, centerX, centerY);
+}
+
+// --- วิเคราะห์ท่าทาง (Logic) ---
+function analyzePose(landmarks) {
     const nose = landmarks[0];
     const leftShoulder = landmarks[11];
     const rightShoulder = landmarks[12];
-    const leftHip = landmarks[23];
-    const rightHip = landmarks[24];
-
-    // ตรวจสอบ Proximity (ระยะห่าง): วัดความกว้างของไหล่เทียบกับความกว้างของเฟรม
-    const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
-    if (shoulderWidth > 0.7) { // ใกล้ไป
-        setFeedbackText("🛑 เดินออกห่างอีกนิด เพื่อความแม่นยำ");
-        return false;
-    } else if (shoulderWidth < 0.2) { // ไกลไป
-        setFeedbackText("🚶 เดินเข้าใกล้เฟรม เพื่อความแม่นยำ");
-        return false;
-    }
-
-    // ตรวจสอบ Center (ซ้าย/ขวา): วัดพิกัด x ของจมูก
-    // หมายเหตุ: หน้าจอสะท้อน (Mirrored) จึงต้องสลับซ้าย/ขวา
-    if (nose.x < 0.35) { // ทางซ้ายของเฟรม
-        setFeedbackText("🚶 เดินไปทางขวา เพื่อเข้ากรอบ");
-        return false;
-    } else if (nose.x > 0.65) { // ทางขวาของเฟรม
-        setFeedbackText("🚶 เดินไปทางซ้าย เพื่อเข้ากรอบ");
-        return false;
-    }
-
-    // ตรวจสอบความครบถ้วน: ต้องเห็น หัว-ไหล่-เอว (landmarks สำคัญ) เพื่อให้การจับท่าทางแม่นยำ
-    if (nose.visibility > 0.7 && leftShoulder.visibility > 0.7 && leftHip.visibility > 0.7) {
-        return true; // Ready
-    } else {
-        setFeedbackText("🛑 โปรดจัดร่างกายให้ตรงกับท่าที่กำหนด");
-        return false;
-    }
-}
-
-// 3. ตรวจสอบเงื่อนไขท่าทางฤๅษีดัดตน
-function checkPoseConditions(landmarks, poseType) {
     const leftWrist = landmarks[15];
     const rightWrist = landmarks[16];
-    const nose = landmarks[0];
 
-    // เงื่อนไข: ถ้าผู้เล่นยกมือทั้งสองข้างสูงกว่าจมูก (RAISE_HANDS)
-    if (poseType === POSE_TYPE.RAISE_HANDS) {
-        if (leftWrist.visibility > 0.5 && rightWrist.visibility > 0.5) {
-            return (leftWrist.y < nose.y && rightWrist.y < nose.y);
-        }
+    // 1. ตรวจสอบระยะห่าง (Proximity)
+    const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
+    if (shoulderWidth > 0.6) {
+        setStatus("ถอยหลังออกไปอีกนิด", "warning"); resetHold(); return;
+    } else if (shoulderWidth < 0.15) {
+        setStatus("เดินเข้ามาใกล้กล้องอีกนิด", "warning"); resetHold(); return;
     }
-    return false;
-}
 
-// 4. การจัดการค้างท่า (Hold Logic & Time)
-function handleHoldLogic(isPoseCorrect, image) {
-    if (isPoseCorrect) {
-        // ท่าทางถูกต้อง ค้างท่า
-        if (!isHoldingCurrentPose) {
-            // เพิ่งเริ่มค้างท่า
-            isHoldingCurrentPose = true;
-            currentTimeHoldingMsec = 0;
-            setFeedbackText("✅ ค้างท่าไว้! 3 วินาที");
-            posInstructionBanner.classList.add('active-mode'); // เขียว
+    // 2. ตรวจสอบท่าทาง: ชูมือสองข้างขึ้นเหนือหัว (ท่าแก้เกียจ)
+    const isHandsUp = (leftWrist.y < nose.y) && (rightWrist.y < nose.y) && 
+                      (leftWrist.visibility > 0.6) && (rightWrist.visibility > 0.6);
+
+    if (isHandsUp) {
+        // ทำท่าถูกต้อง เริ่มจับเวลา
+        if (!isHoldingPose) {
+            isHoldingPose = true;
+            holdStartTime = Date.now();
+            soundTick();
+            setStatus("เยี่ยมมาก! ค้างท่าไว้...", "success");
         } else {
-            // ค้างท่าต่อไป: บวกเพิ่มเวลา (โดยประมาณ)
-            currentTimeHoldingMsec += 100; // บวก 100ms ในแต่ละ loop (ปรับตามความเสถียรของกล้อง)
+            // คำนวณความคืบหน้า
+            const elapsedTime = Date.now() - holdStartTime;
+            const progress = Math.min(elapsedTime / HOLD_DURATION, 1);
+            
+            // วาดวงแหวนตรงกลางหน้าอก (กึ่งกลางระหว่างไหล่ 2 ข้าง)
+            const chestX = (leftShoulder.x + rightShoulder.x) / 2;
+            const chestY = (leftShoulder.y + rightShoulder.y) / 2;
+            drawProgressRing(chestX, chestY, progress);
 
-            if (currentTimeHoldingMsec >= REQUIRED_HOLD_TIME_MSEC) {
-                // ค้างท่าครบกำหนด!
-                score += 1;
+            if (progress >= 1) {
+                // สำเร็จ!
+                score += 10; // ได้ 10 คะแนนต่อครั้ง
                 scoreDisplay.innerText = score;
-                playSuccessSound(); // เสียงเฮ้/สำเร็จ
-                resetHoldState();
+                soundSuccess();
+                setStatus("สุดยอด! ได้รับ 10 คะแนน 🌟", "success");
+                resetHold();
                 
-                // แจ้งเตือนสั้นๆ และReset
-                setFeedbackText("🏆 สำเร็จ! ทำได้ดีมาก");
-                setTimeout(() => { if(isGameRunning && isDetectedBody) setFeedbackText("✅ ค้างท่าไว้! 3 วินาที"); }, 1500);
+                // ดีเลย์ไม่ให้คะแนนเด้งรัวๆ
+                setTimeout(() => resetHold(), 2000); 
             }
         }
     } else {
-        // ท่าทางผิด หรือไม่ได้ยกมือ
-        if (isHoldingCurrentPose) {
-            resetHoldState();
-            if(isGameRunning && isDetectedBody) setFeedbackText("🛑 จัดร่างกายให้ตรงกับท่าที่กำหนด");
-        }
-    }
-    
-    // อัปเดต Timer บนหน้าจอ
-    holdTimerDisplay.innerText = Math.floor(currentTimeHoldingMsec / 1000);
-}
-
-function resetHoldState() {
-    isHoldingCurrentPose = false;
-    currentTimeHoldingMsec = 0;
-    holdTimerDisplay.innerText = "0";
-    posInstructionBanner.classList.remove('active-mode'); // ไม่เขียว
-}
-
-// update UI
-function updateUIReady() {
-    videoWrapper.classList.add('detected'); // ขอบเขียว
-    posInstructionBanner.classList.remove('hidden'); // แสดงคำแนะนำ
-}
-
-function updateUINotReady() {
-    videoWrapper.classList.remove('detected'); // ไม่เขียว
-    if(isGameRunning && isDetectedBody) {
-        // เมื่อ AI ตรวจจับได้แล้ว แต่ผู้เล่นเดินออกนอกกรอบ
-        setFeedbackText("🛑 โปรดจัดร่างกายให้ตรงกรอบ");
+        setStatus("จัดท่า: ชูมือทั้งสองข้างขึ้นเหนือศีรษะ");
+        resetHold();
     }
 }
 
-function setFeedbackText(text) {
-    posInstructionText.innerText = text;
+function resetHold() {
+    isHoldingPose = false;
+    holdStartTime = 0;
 }
 
-// Audio logic
-function playStartChime() { if (isSoundOn) { startChime.currentTime = 0; startChime.play(); } }
-function playSuccessSound() { if (isSoundOn) { successSound.currentTime = 0; successSound.play(); } }
-function toggleBackgroundMusic() {
-    if (bgMusic.paused) {
-        bgMusic.play();
-        document.getElementById('sound-toggle').innerText = "🔊";
-    } else {
-        bgMusic.pause();
-        document.getElementById('sound-toggle').innerText = "🔇";
-    }
-}
-
-// ตั้งค่า AI
-const pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
-pose.setOptions({ 
-    modelComplexity: 1, smoothLandmarks: true, 
-    minDetectionConfidence: 0.6, // ความมั่นใจในการเจอคน 60%
-    minTrackingConfidence: 0.6
-});
+// --- เริ่มต้นระบบ ---
+const pose = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
 pose.onResults(onResults);
 
-// เริ่มเกมเมื่อกดปุ่ม (ใน Overlay)
-document.getElementById('start-app-btn').addEventListener('click', () => {
-    // ซ่อน Overlay
-    posOverlay.classList.add('hidden');
-    
-    // เปิดกล้อง และ AI
-    isGameRunning = true;
-    const camera = new Camera(videoElement, {
-        onFrame: async () => { if(isGameRunning) await pose.send({image: videoElement}); },
-        width: 640, height: 480
-    });
-    camera.start();
-
-    // เล่นเสียงเริ่มงาน (Chime)
-    playStartChime();
+const camera = new Camera(videoElement, {
+    onFrame: async () => { await pose.send({image: videoElement}); },
+    width: 640, height: 480
 });
 
-// เปิด/ปิดเสียง
-document.getElementById('sound-toggle').addEventListener('click', toggleBackgroundMusic);
+// กดปุ่มเริ่ม
+document.getElementById('btn-start').addEventListener('click', () => {
+    // ต้องปลุก AudioContext ด้วยการคลิกของ User เสมอ (ข้อกำหนดของเบราว์เซอร์)
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    document.getElementById('start-overlay').classList.add('hidden');
+    document.getElementById('btn-start').innerText = "กำลังเชื่อมต่อกล้อง...";
+    camera.start();
+});
+
+// ปุ่มปิด/เปิดเสียง
+const btnSound = document.getElementById('btn-sound');
+btnSound.addEventListener('click', () => {
+    isSoundOn = !isSoundOn;
+    btnSound.innerText = isSoundOn ? "🔊" : "🔇";
+    if(isSoundOn && audioCtx.state === 'suspended') audioCtx.resume();
+});
