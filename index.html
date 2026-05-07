@@ -10,29 +10,48 @@
 </head>
 <body>
     <div class="app-container">
+        <div id="position-overlay" class="position-overlay">
+            <div class="overlay-content">
+                <h2>🧘‍♂️ เตรียมจัดท่าทาง</h2>
+                <p>โปรดยืนห่างให้เห็นตัวเต็ม เพื่อความแม่นยำ</p>
+                <button id="start-app-btn">เริ่มใช้งานกล้อง</button>
+            </div>
+        </div>
+
         <header>
-            <h1>🧘‍♂️ Ruesi Pose Challenge</h1>
-            <p>กลุ่มงานการแพทย์แผนไทย โรงพยาบาลสะเดา</p>
+            <div class="header-logo">
+                <span class="icon">🧘‍♂️</span>
+                <div>
+                    <h1>Ruesi Pose Challenge</h1>
+                    <p>กลุ่มงานการแพทย์แผนไทย โรงพยาบาลสะเดา</p>
+                </div>
+            </div>
+            <button id="sound-toggle" class="sound-toggle">🔊</button>
+        </div>
         </header>
 
-        <div class="game-box">
-            <div class="stats">
+        <div class="game-wrapper">
+            <div class="stats-container">
                 <div class="stat-item">คะแนน: <span id="score">0</span></div>
-                <div class="stat-item">ความแม่นยำ: <span id="accuracy">0</span>%</div>
+                <div class="stat-item">ค้างท่า <span id="hold-timer">0</span> วินาที</div>
             </div>
             
             <div class="video-wrapper">
-                <video id="input_video"></video>
+                <video id="input_video" autoplay playsinline muted></video>
                 <canvas id="output_canvas"></canvas>
-                <div id="pose-instruction" class="instruction">จัดร่างกายให้ตรงกับท่าที่กำหนด</div>
+            </div>
+
+            <div id="position-instruction" class="instruction-banner hidden">
+                <span id="pos-instruction-text">โปรดจัดร่างกายให้ตรงกรอบ</span>
             </div>
         </div>
 
-        <div class="controls">
-            <button id="start-btn">เริ่มทดสอบท่าทาง</button>
-            <p class="hint">ยืนห่างจากกล้องให้เห็นเต็มตัวเพื่อความแม่นยำ</p>
-        </div>
     </div>
+
+    <audio id="bg-music" src="background_music.mp3" loop preload="auto"></audio>
+    <audio id="start-chime" src="start_chime.mp3" preload="auto"></audio>
+    <audio id="success-sound" src="success.mp3" preload="auto"></audio>
+
     <script src="script.js"></script>
 </body>
 </html>
