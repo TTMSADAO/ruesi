@@ -2,55 +2,50 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sadao Ruesi Challenge</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ruesi Pose Challenge - Sadao Hospital</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 </head>
 <body>
-    <div class="app-container">
-        <div id="position-overlay" class="position-overlay">
-            <div class="overlay-content">
-                <h2>🧘‍♂️ เตรียมจัดท่าทาง</h2>
-                <p>โปรดยืนห่างให้เห็นตัวเต็ม เพื่อความแม่นยำ</p>
-                <button id="start-app-btn">เริ่มใช้งานกล้อง</button>
+    <div id="start-overlay" class="overlay">
+        <div class="overlay-card">
+            <div class="icon-large">🧘‍♂️</div>
+            <h2>Ruesi Pose Challenge</h2>
+            <p>กลุ่มงานการแพทย์แผนไทยและการแพทย์ทางเลือก<br>โรงพยาบาลสะเดา</p>
+            <div class="instruction-list">
+                <p>✅ เปิดใช้งานกล้อง</p>
+                <p>✅ ยืนห่างให้เห็นเต็มตัว</p>
+                <p>✅ ทำท่าทางค้างไว้ 3 วินาที</p>
             </div>
+            <button id="btn-start" class="btn-primary">เริ่มต้นทดสอบ</button>
         </div>
-
-        <header>
-            <div class="header-logo">
-                <span class="icon">🧘‍♂️</span>
-                <div>
-                    <h1>Ruesi Pose Challenge</h1>
-                    <p>กลุ่มงานการแพทย์แผนไทย โรงพยาบาลสะเดา</p>
-                </div>
-            </div>
-            <button id="sound-toggle" class="sound-toggle">🔊</button>
-        </div>
-        </header>
-
-        <div class="game-wrapper">
-            <div class="stats-container">
-                <div class="stat-item">คะแนน: <span id="score">0</span></div>
-                <div class="stat-item">ค้างท่า <span id="hold-timer">0</span> วินาที</div>
-            </div>
-            
-            <div class="video-wrapper">
-                <video id="input_video" autoplay playsinline muted></video>
-                <canvas id="output_canvas"></canvas>
-            </div>
-
-            <div id="position-instruction" class="instruction-banner hidden">
-                <span id="pos-instruction-text">โปรดจัดร่างกายให้ตรงกรอบ</span>
-            </div>
-        </div>
-
     </div>
 
-    <audio id="bg-music" src="background_music.mp3" loop preload="auto"></audio>
-    <audio id="start-chime" src="start_chime.mp3" preload="auto"></audio>
-    <audio id="success-sound" src="success.mp3" preload="auto"></audio>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo">
+                <span class="logo-icon">🌿</span>
+                <div class="logo-text">
+                    <h1>ฤๅษีดัดตน Challenge</h1>
+                    <span>คะแนนสะสม: <strong id="score-display">0</strong></span>
+                </div>
+            </div>
+            <button id="btn-sound" class="btn-icon">🔊</button>
+        </header>
+
+        <main class="game-area">
+            <div class="camera-container" id="camera-container">
+                <video id="input_video" autoplay playsinline muted></video>
+                <canvas id="output_canvas"></canvas>
+                
+                <div id="status-banner" class="status-banner">
+                    <span id="status-text">รอการตรวจจับร่างกาย...</span>
+                </div>
+            </div>
+        </main>
+    </div>
 
     <script src="script.js"></script>
 </body>
