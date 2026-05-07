@@ -1,0 +1,71 @@
+body {
+    margin: 0;
+    background-color: #fdfbf7;
+    font-family: 'Sukhumvit Set', 'Segoe UI', Tahoma, sans-serif;
+    color: #4a4a4a;
+}
+
+.app-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+}
+
+header h1 { color: #5d8aa8; margin-bottom: 5px; }
+header p { color: #888; margin-top: 0; font-size: 0.9em; }
+
+.game-box {
+    background: white;
+    padding: 20px;
+    border-radius: 24px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+
+.stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 15px;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.stat-item { background: #f0f4f8; padding: 10px 20px; border-radius: 12px; }
+
+.video-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: #eee;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+video { transform: scaleX(-1); width: 100%; height: 100%; object-fit: cover; }
+canvas { position: absolute; top:0; left:0; width:100%; height:100%; transform: scaleX(-1); }
+
+.instruction {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(93, 138, 168, 0.9);
+    color: white;
+    padding: 8px 20px;
+    border-radius: 30px;
+    z-index: 10;
+}
+
+#start-btn {
+    background: #5d8aa8;
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    font-size: 1.1em;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+#start-btn:hover { background: #4a6f8a; transform: translateY(-2px); }
