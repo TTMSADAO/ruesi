@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sadao Ruesi Challenge</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>🧘‍♂️ Ruesi Pose Challenge</h1>
+            <p>กลุ่มงานการแพทย์แผนไทย โรงพยาบาลสะเดา</p>
+        </header>
+
+        <div class="game-box">
+            <div class="stats">
+                <div class="stat-item">คะแนน: <span id="score">0</span></div>
+                <div class="stat-item">ความแม่นยำ: <span id="accuracy">0</span>%</div>
+            </div>
+            
+            <div class="video-wrapper">
+                <video id="input_video"></video>
+                <canvas id="output_canvas"></canvas>
+                <div id="pose-instruction" class="instruction">จัดร่างกายให้ตรงกับท่าที่กำหนด</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="start-btn">เริ่มทดสอบท่าทาง</button>
+            <p class="hint">ยืนห่างจากกล้องให้เห็นเต็มตัวเพื่อความแม่นยำ</p>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
