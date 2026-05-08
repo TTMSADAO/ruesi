@@ -8,14 +8,13 @@ const statusText = document.getElementById('status-text');
 const statusBanner = document.getElementById('status-banner');
 const cameraContainer = document.getElementById('camera-container');
 
-// UI ของคะแนน
+// UI Components
 const currentScoreDisplay = document.getElementById('current-score');
 const highScoreDisplay = document.getElementById('high-score');
 let currentScore = 0;
-let highScore = localStorage.getItem('ruesi_highscore') || 0;
+let highScore = localStorage.getItem('ruesi_highscore_desktop') || 0;
 highScoreDisplay.innerText = highScore;
 
-// UI ของท่าทาง
 const poseGuide = document.getElementById('pose-guide');
 const poseImage = document.getElementById('pose-image');
 const poseName = document.getElementById('pose-name');
@@ -27,106 +26,122 @@ let poseLandmarker = undefined;
 let isGameRunning = false;
 let lastVideoTime = -1;
 
-// --- Logic คำนวณความลึก (Depth Proxy) และระยะประสานมือ ---
-const checkHandsClaspedFlexible = (landmarks) => {
+// ==========================================
+// 💡 MODULE: 3D Mathematics & Anti-Cheat
+// ==========================================
+
+// 1. คำนวณระยะห่าง 3 แกน (X, Y, Z) เพื่อตรวจสอบความลึก
+const getDistance3D = (p1, p2) => {
+    return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + Math.pow(p1.z - p2.z, 2));
+};
+
+// 2. คำนวณองศาข้อต่อ 2D (เช็คแขนตึง)
+const getAngle = (a, b, c) => {
+    let radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+    let angle = Math.abs(radians * 180.0 / Math.PI);
+    if (angle > 180.0) angle = 360 - angle;
+    return angle;
+};
+
+// 3. ตรวจสอบ "การประสานมือแบบ 3D" (เข้มงวด)
+const checkHandsClasped3D = (landmarks) => {
     const lWrist = landmarks[15]; const rWrist = landmarks[16];
-    const lElbow = landmarks[13]; const rElbow = landmarks[14];
+    if (lWrist.visibility < 0.4 || rWrist.visibility < 0.4) return false;
 
-    // 1. ต้องเห็นข้อมือ
-    if (lWrist.visibility < 0.5 || rWrist.visibility < 0.5) return false;
-
-    // 2. ระยะห่างข้อมือต้องใกล้กัน
-    const distXY = Math.sqrt(Math.pow(lWrist.x - rWrist.x, 2) + Math.pow(lWrist.y - rWrist.y, 2));
-    if (distXY > 0.12) return false; 
-
-    // 3. แก้ปัญหา "เหยียดแขนแต่ไม่ประสานมือ" (เช็คความกว้างศอกเทียบกับไหล่)
-    const elbowDist = Math.abs(lElbow.x - rElbow.x);
-    const shoulderDist = Math.abs(landmarks[11].x - landmarks[12].x);
-    if (elbowDist > shoulderDist * 1.5) return false; // ถ้าศอกกางกว้างไป แสดงว่าไม่ได้ประสานมือ
-
+    // ระยะห่างมือต้องใกล้กันทั้งในแกน X, Y และ Z (ลึก)
+    const dist3D = getDistance3D(lWrist, rWrist);
+    if (dist3D > 0.15) return false; 
     return true;
 };
 
-// --- คลังท่าฤๅษีดัดตน (V.4 - Smart Tracking) ---
+// ==========================================
+// 🧘‍♂️ คลังท่าฤๅษีดัดตน
+// ==========================================
 const POSES = [
     {
-        id: 0, name: 'ท่าแก้เกียจ (ด้านบน)', desc: 'ประสานมือ เหยียดแขนขึ้นให้สุด', arrow: '',
+        id: 0, name: 'ท่าแก้เกียจ (ด้านบน)', desc: 'ประสานมือ เหยียดแขนตึงขึ้นเหนือศีรษะ', arrow: '',
         image: 'https://img.youtube.com/vi/-jXm7wgOtYs/maxresdefault.jpg',
         check: (landmarks) => {
-            if (!checkHandsClaspedFlexible(landmarks)) return false;
+            if (!checkHandsClasped3D(landmarks)) return false;
+            
+            // แขนต้องเหยียดตึง (มุมข้อศอก > 140 องศา)
+            const lAngle = getAngle(landmarks[11], landmarks[13], landmarks[15]);
+            const rAngle = getAngle(landmarks[12], landmarks[14], landmarks[16]);
+            if (lAngle < 140 || rAngle < 140) return false;
+
             const wristY = (landmarks[15].y + landmarks[16].y) / 2;
-            const eyeY = (landmarks[2].y + landmarks[5].y) / 2;
-            return wristY < eyeY - 0.05; // ข้อมือต้องสูงกว่าระดับสายตา
+            const chinY = landmarks[152].y;
+            return wristY < chinY - 0.05; 
         }
     },
     {
-        id: 1, name: 'ท่าแก้เกียจ (ด้านหน้า)', desc: 'ประสานมือ เหยียดแขนตรงไปข้างหน้า', arrow: '',
+        id: 1, name: 'ท่าแก้เกียจ (ด้านหน้า)', desc: 'ประสานมือ เหยียดแขนตึงตรงไปข้างหน้า', arrow: '',
         image: 'https://img.youtube.com/vi/-jXm7wgOtYs/hqdefault.jpg',
         check: (landmarks) => {
-            if (!checkHandsClaspedFlexible(landmarks)) return false;
+            if (!checkHandsClasped3D(landmarks)) return false;
+            
+            // แขนต้องตึง > 140 องศา
+            const lAngle = getAngle(landmarks[11], landmarks[13], landmarks[15]);
+            const rAngle = getAngle(landmarks[12], landmarks[14], landmarks[16]);
+            if (lAngle < 140 || rAngle < 140) return false;
+
             const wristY = (landmarks[15].y + landmarks[16].y) / 2;
             const shoulderY = (landmarks[11].y + landmarks[12].y) / 2;
-            
-            // ขยาย Tolerance ความสูงให้อยู่ระดับอก-คาง
             const isAtShoulderLevel = Math.abs(wristY - shoulderY) < 0.35; 
             
             const wristX = (landmarks[15].x + landmarks[16].x) / 2;
             const isCentered = wristX > landmarks[12].x && wristX < landmarks[11].x;
 
-            return isAtShoulderLevel && isCentered;
+            // ตรวจสอบแกน Z: ข้อมือต้องอยู่ "ใกล้กล้อง" กว่าหัวไหล่ (กันโกงพับแขนแนบอก)
+            // ใน MediaPipe ค่า z ยิ่งติดลบ ยิ่งใกล้กล้อง
+            const wristZ = (landmarks[15].z + landmarks[16].z) / 2;
+            const shoulderZ = (landmarks[11].z + landmarks[12].z) / 2;
+            const isExtendedForward = wristZ < shoulderZ - 0.15; 
+
+            return isAtShoulderLevel && isCentered && isExtendedForward;
         }
     },
     {
-        id: 2, name: 'ท่าแก้เกียจ (บิดขวา)', desc: 'บิดลำตัวและยืดแขนไปทางขวาให้สุด', arrow: '👉 บิดขวา', 
+        id: 2, name: 'ท่าแก้เกียจ (บิดขวา)', desc: 'บิดเอวและแขนตึงไปทางขวา', arrow: '👉 บิดขวา', 
         image: 'https://img.youtube.com/vi/-jXm7wgOtYs/maxresdefault.jpg', 
         check: (landmarks) => {
-            const lWrist = landmarks[15]; const rWrist = landmarks[16];
+            if (!checkHandsClasped3D(landmarks)) return false;
+
+            // ท่าบิดตัว มุมแขนจะหลอกตาเล็กน้อย อนุโลมให้ตึงที่ 120 องศา
+            const lAngle = getAngle(landmarks[11], landmarks[13], landmarks[15]);
+            const rAngle = getAngle(landmarks[12], landmarks[14], landmarks[16]);
+            if (lAngle < 120 && rAngle < 120) return false;
+
+            const wristX = (landmarks[15].x + landmarks[16].x) / 2;
             const nose = landmarks[0];
-            
-            // ใช้ "แขนนำ" (มือที่ยื่นไปทางซ้ายของจอภาพ) ช่วยแก้ปัญหาบังกัน
-            const leadingWrist = (lWrist.x < rWrist.x) ? lWrist : rWrist;
-            if (leadingWrist.visibility < 0.4) return false;
+            const isTwistedRight = wristX < (nose.x - 0.15); // ต้องบิดเลยจมูกชัดเจน
 
-            // แขนนำต้องยืดเลยจมูกไปพอสมควร
-            const isTwistedRight = leadingWrist.x < (nose.x - 0.1);
-
+            const wristY = (landmarks[15].y + landmarks[16].y) / 2;
             const shoulderY = (landmarks[11].y + landmarks[12].y) / 2;
-            const isLevelOk = Math.abs(leadingWrist.y - shoulderY) < 0.4;
+            const isLevelOk = Math.abs(wristY - shoulderY) < 0.45;
 
-            // ถ้าเห็นมือทั้งสองข้างชัดเจน มันต้องอยู่ใกล้กัน
-            let isHandsTogether = true;
-            if (lWrist.visibility > 0.6 && rWrist.visibility > 0.6) {
-                const distXY = Math.sqrt(Math.pow(lWrist.x - rWrist.x, 2) + Math.pow(lWrist.y - rWrist.y, 2));
-                if (distXY > 0.25) isHandsTogether = false; 
-            }
-
-            return isTwistedRight && isLevelOk && isHandsTogether;
+            return isTwistedRight && isLevelOk;
         }
     },
     {
-        id: 3, name: 'ท่าแก้เกียจ (บิดซ้าย)', desc: 'บิดลำตัวและยืดแขนไปทางซ้ายให้สุด', arrow: '👈 บิดซ้าย',
+        id: 3, name: 'ท่าแก้เกียจ (บิดซ้าย)', desc: 'บิดเอวและแขนตึงไปทางซ้าย', arrow: '👈 บิดซ้าย',
         image: 'https://img.youtube.com/vi/-jXm7wgOtYs/maxresdefault.jpg',
         check: (landmarks) => {
-            const lWrist = landmarks[15]; const rWrist = landmarks[16];
+            if (!checkHandsClasped3D(landmarks)) return false;
+
+            const lAngle = getAngle(landmarks[11], landmarks[13], landmarks[15]);
+            const rAngle = getAngle(landmarks[12], landmarks[14], landmarks[16]);
+            if (lAngle < 120 && rAngle < 120) return false;
+
+            const wristX = (landmarks[15].x + landmarks[16].x) / 2;
             const nose = landmarks[0];
-            
-            // ใช้ "แขนนำ" (มือที่ยื่นไปทางขวาของจอภาพ)
-            const leadingWrist = (lWrist.x > rWrist.x) ? lWrist : rWrist;
-            if (leadingWrist.visibility < 0.4) return false;
+            const isTwistedLeft = wristX > (nose.x + 0.15); // ต้องบิดเลยจมูกชัดเจน
 
-            // แขนนำต้องยืดเลยจมูกไปพอสมควร
-            const isTwistedLeft = leadingWrist.x > (nose.x + 0.1);
-
+            const wristY = (landmarks[15].y + landmarks[16].y) / 2;
             const shoulderY = (landmarks[11].y + landmarks[12].y) / 2;
-            const isLevelOk = Math.abs(leadingWrist.y - shoulderY) < 0.4;
+            const isLevelOk = Math.abs(wristY - shoulderY) < 0.45;
 
-            let isHandsTogether = true;
-            if (lWrist.visibility > 0.6 && rWrist.visibility > 0.6) {
-                const distXY = Math.sqrt(Math.pow(lWrist.x - rWrist.x, 2) + Math.pow(lWrist.y - rWrist.y, 2));
-                if (distXY > 0.25) isHandsTogether = false; 
-            }
-
-            return isTwistedLeft && isLevelOk && isHandsTogether;
+            return isTwistedLeft && isLevelOk;
         }
     }
 ];
@@ -134,13 +149,12 @@ const POSES = [
 let currentPoseIndex = 0;
 let roundTimeLeft = 15; 
 let roundTimerInterval;
-
-const HOLD_DURATION = 3000; // ค้าง 3 วินาที
+const HOLD_DURATION = 3000;
 let isHoldingPose = false;
 let holdStartTime = 0;
 let playerFinishedRound = false;
 
-// --- ระบบเสียง (Synth) ---
+// Audio System
 let isSoundOn = true;
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playTone(freq, type, dur) { if(!isSoundOn) return; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime); gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + dur); }
@@ -149,23 +163,29 @@ function soundSuccess() { playTone(523.25, 'sine', 0.1); setTimeout(() => playTo
 function soundNextRound() { playTone(440, 'triangle', 0.3); setTimeout(() => playTone(880, 'triangle', 0.4), 150); }
 function soundFail() { playTone(300, 'sawtooth', 0.5); } 
 
-// --- โหลด MediaPipe AI ---
+// Init AI
 const createPoseLandmarker = async () => {
     const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
-    poseLandmarker = await PoseLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`, delegate: "GPU" }, runningMode: "VIDEO", numPoses: 1 });
+    poseLandmarker = await PoseLandmarker.createFromOptions(vision, { 
+        baseOptions: { 
+            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`, 
+            delegate: "GPU" 
+        }, 
+        runningMode: "VIDEO", numPoses: 1 
+    });
     btnStart.innerText = "เริ่มเกมจับท่าทาง!";
     btnStart.disabled = false;
 };
 createPoseLandmarker();
 
-// --- ระบบเกมเพลย์ ---
+// Game Logic
 function addScore() {
     currentScore += 10;
     currentScoreDisplay.innerText = currentScore;
     if (currentScore > highScore) {
         highScore = currentScore;
         highScoreDisplay.innerText = highScore;
-        localStorage.setItem('ruesi_highscore', highScore);
+        localStorage.setItem('ruesi_highscore_desktop', highScore);
     }
 }
 
@@ -196,7 +216,7 @@ function startNextRound() {
         roundTimeLeft--;
         timerFill.style.width = `${(roundTimeLeft / 15) * 100}%`;
         if(roundTimeLeft <= 5) timerFill.style.background = '#e74c3c';
-        else timerFill.style.background = '#2ecc71';
+        else timerFill.style.background = '#27ae60';
 
         if (roundTimeLeft <= 0) {
             soundFail();
@@ -217,7 +237,6 @@ function updateStatusUI(text, state) {
     }
 }
 
-// --- วงจรการทำงานของกล้อง (Render Loop) ---
 async function renderLoop() {
     if (!isGameRunning) return;
     canvasElement.width = videoElement.clientWidth; canvasElement.height = videoElement.clientHeight;
@@ -233,7 +252,7 @@ async function renderLoop() {
                 if(!playerFinishedRound) {
                     analyzePose(landmarks);
                 } else {
-                    drawSkeleton(landmarks, '#2ecc71'); 
+                    drawSkeleton(landmarks, '#27ae60'); 
                     drawStatusText(landmarks, "สุดยอด! ได้รับ 10 คะแนน 🌟");
                 }
             } else {
@@ -246,26 +265,25 @@ async function renderLoop() {
     window.requestAnimationFrame(renderLoop);
 }
 
-// --- การวาดกราฟิก ---
 function drawSkeleton(landmarks, color) {
     const drawingUtils = new DrawingUtils(canvasCtx);
-    drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, { color: color, lineWidth: 4 });
-    drawingUtils.drawLandmarks(landmarks, { color: '#ffffff', lineWidth: 2, radius: 5 });
+    drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, { color: color, lineWidth: 6 });
+    drawingUtils.drawLandmarks(landmarks, { color: '#ffffff', lineWidth: 3, radius: 6 });
 }
 
 function drawStatusText(landmarks, text) {
     const chestY = (landmarks[11].y + landmarks[12].y) / 2;
-    canvasCtx.fillStyle = '#FFF'; canvasCtx.font = 'bold 30px Prompt'; canvasCtx.textAlign = 'center';
-    canvasCtx.shadowColor = "rgba(0,0,0,0.8)"; canvasCtx.shadowBlur = 10;
+    canvasCtx.fillStyle = '#FFF'; canvasCtx.font = 'bold 40px Prompt'; canvasCtx.textAlign = 'center';
+    canvasCtx.shadowColor = "rgba(0,0,0,0.8)"; canvasCtx.shadowBlur = 15;
     canvasCtx.fillText(text, landmarks[0].x*canvasElement.width, chestY*canvasElement.height);
     canvasCtx.shadowBlur = 0; 
 }
 
 function drawProgressRing(x, y, progress) {
     const cX = x * canvasElement.width; const cY = y * canvasElement.height;
-    canvasCtx.beginPath(); canvasCtx.arc(cX, cY, 50, 0, 2*Math.PI); canvasCtx.strokeStyle='rgba(255,255,255,0.4)'; canvasCtx.lineWidth=12; canvasCtx.stroke();
-    canvasCtx.beginPath(); canvasCtx.arc(cX, cY, 50, -Math.PI/2, (-Math.PI/2)+(2*Math.PI*progress)); canvasCtx.strokeStyle='#2ecc71'; canvasCtx.lineCap='round'; canvasCtx.lineWidth=12; canvasCtx.stroke();
-    canvasCtx.fillStyle = '#FFF'; canvasCtx.font = 'bold 30px Prompt'; canvasCtx.textAlign = 'center'; canvasCtx.textBaseline = 'middle';
+    canvasCtx.beginPath(); canvasCtx.arc(cX, cY, 60, 0, 2*Math.PI); canvasCtx.strokeStyle='rgba(255,255,255,0.3)'; canvasCtx.lineWidth=15; canvasCtx.stroke();
+    canvasCtx.beginPath(); canvasCtx.arc(cX, cY, 60, -Math.PI/2, (-Math.PI/2)+(2*Math.PI*progress)); canvasCtx.strokeStyle='#27ae60'; canvasCtx.lineCap='round'; canvasCtx.lineWidth=15; canvasCtx.stroke();
+    canvasCtx.fillStyle = '#FFF'; canvasCtx.font = 'bold 40px Prompt'; canvasCtx.textAlign = 'center'; canvasCtx.textBaseline = 'middle';
     canvasCtx.fillText(Math.ceil(3 - (progress*3)), cX, cY);
 }
 
@@ -273,13 +291,13 @@ function analyzePose(landmarks) {
     const isCorrectPose = POSES[currentPoseIndex].check(landmarks);
 
     if (isCorrectPose) {
-        drawSkeleton(landmarks, '#2ecc71'); 
+        drawSkeleton(landmarks, '#27ae60'); 
         
         if (!isHoldingPose) {
             isHoldingPose = true;
             holdStartTime = Date.now();
             soundTick();
-            updateStatusUI("✅ ท่าถูกต้อง! ค้างไว้...", 'success');
+            updateStatusUI("✅ ท่าถูกต้อง! เหยียดตึงค้างไว้...", 'success');
         } else {
             const elapsed = Date.now() - holdStartTime;
             const progress = Math.min(elapsed / HOLD_DURATION, 1);
@@ -301,7 +319,6 @@ function analyzePose(landmarks) {
     }
 }
 
-// --- ควบคุมปุ่มเริ่มและเสียง ---
 btnStart.addEventListener('click', () => {
     if(audioCtx.state === 'suspended') audioCtx.resume();
     document.getElementById('start-overlay').classList.add('hidden');
@@ -319,6 +336,6 @@ btnStart.addEventListener('click', () => {
 const btnSound = document.getElementById('btn-sound');
 btnSound.addEventListener('click', () => {
     isSoundOn = !isSoundOn;
-    btnSound.innerText = isSoundOn ? "🔊" : "🔇";
+    btnSound.innerText = isSoundOn ? "🔊 เปิด/ปิด เสียง" : "🔇 เปิด/ปิด เสียง";
     if(isSoundOn && audioCtx.state === 'suspended') audioCtx.resume();
 });
