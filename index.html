@@ -2,49 +2,58 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ruesi Pose Challenge - Sadao Hospital</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruesi Pose Kiosk - Sadao Hospital</title>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="start-overlay" class="overlay">
         <div class="overlay-card glass-panel">
-            <div class="icon-large">🏆</div>
-            <h2>Ruesi Pose Challenge</h2>
-            <p>แข่งขันทำท่าฤๅษีดัดตนให้แม่นยำที่สุด!</p>
+            <div class="icon-large">🖥️🧘‍♂️</div>
+            <h2>ระบบประเมินท่าฤๅษีดัดตน 3D</h2>
+            <p>กลุ่มงานการแพทย์แผนไทย โรงพยาบาลสะเดา</p>
             <div class="instruction-list">
-                <p><span>👉</span> ทำท่าตามรูป "ต้นแบบ" ที่มุมขวา</p>
-                <p><span>🟩</span> เมื่อโครงร่างเปลี่ยนเป็น <b>สีเขียว</b> ให้ค้างท่าไว้ 3 วินาที</p>
-                <p><span>🔥</span> สะสมคะแนนเพื่อทำลายสถิติ High Score!</p>
+                <p><span>📍</span> ยืนให้พอดีกับกรอบหน้าจอ</p>
+                <p><span>💪</span> เหยียดแขนให้ตึงที่สุด ระบบถึงจะบันทึกคะแนน</p>
+                <p><span>⏱️</span> ทำท่าค้างไว้ 3 วินาทีเมื่อกรอบเป็นสีเขียว</p>
             </div>
-            <button id="btn-start" class="btn-primary" disabled>กำลังโหลดระบบ AI...</button>
+            <button id="btn-start" class="btn-primary" disabled>กำลังโหลด 3D AI Engine...</button>
         </div>
     </div>
 
-    <div class="app-container">
-        <header class="app-header glass-panel">
+    <div class="desktop-layout">
+        <aside class="side-panel glass-panel">
             <div class="logo">
                 <div class="logo-icon-bg"><span class="logo-icon">🌿</span></div>
                 <div class="logo-text">
-                    <h1>ฤๅษีดัดตน Challenge</h1>
+                    <h1>ฤๅษีดัดตน</h1>
                     <span>โรงพยาบาลสะเดา</span>
                 </div>
             </div>
-            
+
             <div class="score-board">
                 <div class="score-item">
-                    <span>คะแนนปัจจุบัน</span>
-                    <strong id="current-score">0</strong>
+                    <span>คะแนนของคุณ</span>
+                    <strong id="current-score" class="score-huge">0</strong>
                 </div>
                 <div class="score-item highlight">
-                    <span>สถิติสูงสุด</span>
+                    <span>สถิติสูงสุด (High Score)</span>
                     <strong id="high-score">0</strong>
                 </div>
             </div>
-            
-            <button id="btn-sound" class="btn-icon glass-btn">🔊</button>
-        </header>
+
+            <div id="pose-guide" class="pose-guide hidden">
+                <div class="timer-bar"><div id="timer-fill" class="timer-fill"></div></div>
+                <img id="pose-image" src="" alt="Pose Reference">
+                <div class="pose-info">
+                    <h3 id="pose-name">เตรียมพร้อม</h3>
+                    <p id="pose-desc">กำลังสุ่มท่าทาง...</p>
+                </div>
+            </div>
+
+            <button id="btn-sound" class="btn-icon glass-btn">🔊 เปิด/ปิด เสียง</button>
+        </aside>
 
         <main class="game-area">
             <div class="camera-container glass-panel" id="camera-container">
@@ -52,15 +61,6 @@
                 <canvas id="output_canvas"></canvas>
                 
                 <div id="direction-arrow" class="direction-arrow hidden">⬅️ บิดไปทางนี้</div>
-
-                <div id="pose-guide" class="pose-guide glass-panel hidden">
-                    <div class="timer-bar"><div id="timer-fill" class="timer-fill"></div></div>
-                    <img id="pose-image" src="" alt="Pose Reference">
-                    <div class="pose-info">
-                        <h3 id="pose-name">เตรียมพร้อม</h3>
-                        <p id="pose-desc">กำลังสุ่มท่าทาง...</p>
-                    </div>
-                </div>
 
                 <div id="status-banner" class="status-banner glass-panel">
                     <span id="status-text">รอการตรวจจับร่างกาย...</span>
