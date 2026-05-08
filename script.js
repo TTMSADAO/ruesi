@@ -27,19 +27,18 @@ let isGameRunning = false;
 let lastVideoTime = -1;
 
 // ==========================================
-// 💡 GAME STATES (ระบบสถานะของเกม)
+// GAME STATES
 // ==========================================
 const STATE_CALIBRATING = 'CALIBRATING';
 const STATE_PLAYING = 'PLAYING';
 let gameState = STATE_CALIBRATING; 
 
-// ตัวแปรสำหรับ Calibration
 let isCalibrationReady = false;
 let calibrationStartTime = 0;
-const CALIBRATION_DURATION = 3000; // ยืนให้ตรงกรอบ 3 วินาที
+const CALIBRATION_DURATION = 2000; // ลดเวลายืนเตรียมตัวเหลือ 2 วินาที
 
 // ==========================================
-// 💡 3D Mathematics & Anti-Cheat
+// 3D Mathematics & Anti-Cheat
 // ==========================================
 const getDistance3D = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + Math.pow(p1.z - p2.z, 2));
 const getAngle = (a, b, c) => {
@@ -170,70 +169,67 @@ function addScore() {
 }
 
 // ==========================================
-// 💡 ระบบตรวจสอบ Calibration
+// 💡 ระบบตรวจสอบ Calibration (ปรับใหม่ให้ง่ายขึ้น 10 เท่า!)
 // ==========================================
 function processCalibration(landmarks) {
-    // กำหนดพื้นที่ "กรอบรับคน" (ตรงกลางจอ)
-    // แกน X (ซ้ายขวา) จาก 30% ถึง 70% | แกน Y (บนล่าง) จาก 20% ถึง 80%
-    const isInsideBox = (point) => {
-        return point.x > 0.3 && point.x < 0.7 && point.y > 0.2 && point.y < 0.8;
-    };
-
-    // เช็คว่า ไหล่(11,12) และ สะโพก(23,24) อยู่ในกรอบหรือไม่
     const lShoulder = landmarks[11]; const rShoulder = landmarks[12];
-    const lHip = landmarks[23]; const rHip = landmarks[24];
-
-    if (lShoulder.visibility > 0.6 && rShoulder.visibility > 0.6 && 
-        isInsideBox(lShoulder) && isInsideBox(rShoulder) && 
-        isInsideBox(lHip) && isInsideBox(rHip)) {
+    
+    // เช็คแค่ว่ากล้องเห็น "หัวไหล่" ทั้งสองข้างชัดเจนพอ
+    if (lShoulder.visibility > 0.5 && rShoulder.visibility > 0.5) {
         
-        // ยืนเข้ากรอบแล้ว
-        drawCalibrationGuide(true);
-        if (!isCalibrationReady) {
-            isCalibrationReady = true;
-            calibrationStartTime = Date.now();
-            soundTick();
-            updateStatusUI("✅ ยืนเข้าที่แล้ว! รอสักครู่...", 'success');
-        } else {
-            const elapsed = Date.now() - calibrationStartTime;
-            const progress = Math.min(elapsed / CALIBRATION_DURATION, 1);
-            
-            drawProgressRing(0.5, 0.5, progress, 'กรุณายืนนิ่งๆ'); // วาดวงแหวนกลางจอ
+        // วัดความกว้างของไหล่เทียบกับจอ (ถ้าใหญ่ไป = ใกล้ไป, ถ้าเล็กไป = ไกลไป)
+        const shoulderWidth = Math.abs(lShoulder.x - rShoulder.x);
+        const isGoodDistance = shoulderWidth > 0.15 && shoulderWidth < 0.45;
 
-            if (progress >= 1) {
-                // Calibrate สำเร็จ! เปลี่ยน State เข้าสู่โหมดเกม
-                gameState = STATE_PLAYING;
-                soundSuccess();
-                startNextRound(); 
+        // เช็คว่ายืนอยู่ค่อนข้างตรงกลาง (ไม่ตกขอบซ้ายขวา)
+        const isCentered = lShoulder.x > 0.1 && rShoulder.x < 0.9;
+
+        if (isGoodDistance && isCentered) {
+            // ยืนระยะถูกต้องแล้ว!
+            drawCalibrationGuide(true);
+            if (!isCalibrationReady) {
+                isCalibrationReady = true;
+                calibrationStartTime = Date.now();
+                soundTick();
+                updateStatusUI("✅ ยืนเข้าที่แล้ว! รอสักครู่...", 'success');
+            } else {
+                const elapsed = Date.now() - calibrationStartTime;
+                const progress = Math.min(elapsed / CALIBRATION_DURATION, 1);
+                
+                drawProgressRing(0.5, 0.5, progress, 'ยืนนิ่งๆ'); 
+
+                if (progress >= 1) {
+                    gameState = STATE_PLAYING; // เข้าเกม!
+                    soundSuccess();
+                    startNextRound(); 
+                }
             }
+        } else {
+            drawCalibrationGuide(false);
+            isCalibrationReady = false;
+            updateStatusUI(shoulderWidth > 0.45 ? "⚠️ กรุณาถอยหลังอีกนิด" : "⚠️ ขยับเข้ามาตรงกลางอีกนิด", 'warning');
         }
     } else {
-        // หลุดกรอบ
         drawCalibrationGuide(false);
         isCalibrationReady = false;
-        updateStatusUI("⚠️ กรุณายืนถอยหลัง ให้อยู่ในกรอบประ", 'warning');
+        updateStatusUI("⚠️ ไม่พบผู้ใช้งาน กรุณาเข้ากล้อง", 'warning');
     }
 }
 
 function drawCalibrationGuide(isReady) {
-    const width = canvasElement.width * 0.4;
-    const height = canvasElement.height * 0.6;
-    const x = canvasElement.width * 0.3;
-    const y = canvasElement.height * 0.2;
+    // ขยายกรอบเส้นประให้ใหญ่ขึ้นมากๆ เพื่อให้เป็นแค่ไกด์สายตา
+    const width = canvasElement.width * 0.7;
+    const height = canvasElement.height * 0.8;
+    const x = canvasElement.width * 0.15;
+    const y = canvasElement.height * 0.1;
 
     canvasCtx.beginPath();
     canvasCtx.rect(x, y, width, height);
     canvasCtx.lineWidth = 6;
-    canvasCtx.setLineDash([20, 15]); // เส้นประ
-    canvasCtx.strokeStyle = isReady ? '#27ae60' : '#f39c12';
+    canvasCtx.setLineDash([20, 15]); 
+    canvasCtx.strokeStyle = isReady ? '#27ae60' : 'rgba(243, 156, 18, 0.6)'; // สีส้มจางลงไม่ให้เกะกะ
     canvasCtx.stroke();
-    canvasCtx.setLineDash([]); // รีเซ็ตเส้นประ
-    
-    // ใส่ Text อธิบาย
-    canvasCtx.fillStyle = isReady ? '#27ae60' : '#f39c12'; 
-    canvasCtx.font = 'bold 30px Prompt'; 
-    canvasCtx.textAlign = 'center';
-    canvasCtx.fillText(isReady ? "ดีมาก" : "จุดเตรียมตัว", canvasElement.width / 2, y - 20);
+    canvasCtx.setLineDash([]); 
 }
 
 
@@ -305,10 +301,9 @@ async function renderLoop() {
             if (result.landmarks && result.landmarks.length > 0) {
                 const landmarks = result.landmarks[0]; 
                 
-                // State Machine Check
                 if (gameState === STATE_CALIBRATING) {
                     processCalibration(landmarks);
-                    drawSkeleton(landmarks, 'rgba(255,255,255,0.5)'); // วาดเส้นบางๆ ตอนเตรียมตัว
+                    drawSkeleton(landmarks, 'rgba(255,255,255,0.5)'); 
                 } else if (gameState === STATE_PLAYING) {
                     if(!playerFinishedRound) {
                         analyzePose(landmarks);
@@ -379,7 +374,6 @@ function analyzePose(landmarks) {
             const elapsed = Date.now() - holdStartTime;
             const progress = Math.min(elapsed / HOLD_DURATION, 1);
             
-            // วาดวงแหวนที่หน้าอก
             const chestX = (landmarks[11].x+landmarks[12].x)/2;
             const chestY = (landmarks[11].y+landmarks[12].y)/2;
             drawProgressRing(chestX, chestY, progress);
@@ -408,7 +402,7 @@ btnStart.addEventListener('click', () => {
             videoElement.srcObject = stream;
             videoElement.addEventListener("loadeddata", () => {
                 isGameRunning = true;
-                gameState = STATE_CALIBRATING; // เริ่มต้นที่การเตรียมตัวเสมอ
+                gameState = STATE_CALIBRATING; 
                 renderLoop();
             });
         }).catch(err => { statusText.innerText = "ไม่สามารถเข้าถึงกล้องได้"; });
