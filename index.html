@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ruesi Pose Challenge - Sadao Hospital</title>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="start-overlay" class="overlay">
         <div class="overlay-card glass-panel">
-            <div class="icon-large">🧘‍♂️✨</div>
-            <h2>Ruesi Pose Multiplayer</h2>
-            <p>กลุ่มงานการแพทย์แผนไทยและการแพทย์ทางเลือก<br>โรงพยาบาลสะเดา</p>
+            <div class="icon-large">🏆</div>
+            <h2>Ruesi Pose Challenge</h2>
+            <p>แข่งขันทำท่าฤๅษีดัดตนให้แม่นยำที่สุด!</p>
             <div class="instruction-list">
-                <p><span>👥</span> แข่งขันพร้อมกันได้สูงสุด 4 คน</p>
-                <p><span>📱</span> ดูรูป "ท่าต้นแบบ" ที่มุมขวาบน</p>
-                <p><span>⏱️</span> ทำท่าตามและค้างไว้ 3 วินาที</p>
+                <p><span>👉</span> ทำท่าตามรูป "ต้นแบบ" ที่มุมขวา</p>
+                <p><span>🟩</span> เมื่อโครงร่างเปลี่ยนเป็น <b>สีเขียว</b> ให้ค้างท่าไว้ 3 วินาที</p>
+                <p><span>🔥</span> สะสมคะแนนเพื่อทำลายสถิติ High Score!</p>
             </div>
-            <button id="btn-start" class="btn-primary" disabled>กำลังโหลด AI Engine...</button>
+            <button id="btn-start" class="btn-primary" disabled>กำลังโหลดระบบ AI...</button>
         </div>
     </div>
 
@@ -28,9 +28,21 @@
                 <div class="logo-icon-bg"><span class="logo-icon">🌿</span></div>
                 <div class="logo-text">
                     <h1>ฤๅษีดัดตน Challenge</h1>
-                    <span>ระบบจับท่าทาง AI อัจฉริยะ</span>
+                    <span>โรงพยาบาลสะเดา</span>
                 </div>
             </div>
+            
+            <div class="score-board">
+                <div class="score-item">
+                    <span>คะแนนปัจจุบัน</span>
+                    <strong id="current-score">0</strong>
+                </div>
+                <div class="score-item highlight">
+                    <span>สถิติสูงสุด</span>
+                    <strong id="high-score">0</strong>
+                </div>
+            </div>
+            
             <button id="btn-sound" class="btn-icon glass-btn">🔊</button>
         </header>
 
@@ -39,6 +51,8 @@
                 <video id="input_video" autoplay playsinline muted></video>
                 <canvas id="output_canvas"></canvas>
                 
+                <div id="direction-arrow" class="direction-arrow hidden">⬅️ บิดไปทางนี้</div>
+
                 <div id="pose-guide" class="pose-guide glass-panel hidden">
                     <div class="timer-bar"><div id="timer-fill" class="timer-fill"></div></div>
                     <img id="pose-image" src="" alt="Pose Reference">
