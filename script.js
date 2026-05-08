@@ -27,15 +27,21 @@ let isGameRunning = false;
 let lastVideoTime = -1;
 
 // ==========================================
-// 💡 MODULE: 3D Mathematics & Anti-Cheat
+// 💡 GAME STATES (ระบบสถานะของเกม)
 // ==========================================
+const STATE_CALIBRATING = 'CALIBRATING';
+const STATE_PLAYING = 'PLAYING';
+let gameState = STATE_CALIBRATING; 
 
-// 1. คำนวณระยะห่าง 3 แกน (X, Y, Z) เพื่อตรวจสอบความลึก
-const getDistance3D = (p1, p2) => {
-    return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + Math.pow(p1.z - p2.z, 2));
-};
+// ตัวแปรสำหรับ Calibration
+let isCalibrationReady = false;
+let calibrationStartTime = 0;
+const CALIBRATION_DURATION = 3000; // ยืนให้ตรงกรอบ 3 วินาที
 
-// 2. คำนวณองศาข้อต่อ 2D (เช็คแขนตึง)
+// ==========================================
+// 💡 3D Mathematics & Anti-Cheat
+// ==========================================
+const getDistance3D = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + Math.pow(p1.z - p2.z, 2));
 const getAngle = (a, b, c) => {
     let radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
     let angle = Math.abs(radians * 180.0 / Math.PI);
@@ -43,32 +49,27 @@ const getAngle = (a, b, c) => {
     return angle;
 };
 
-// 3. ตรวจสอบ "การประสานมือแบบ 3D" (เข้มงวด)
 const checkHandsClasped3D = (landmarks) => {
     const lWrist = landmarks[15]; const rWrist = landmarks[16];
+    const lElbow = landmarks[13]; const rElbow = landmarks[14];
     if (lWrist.visibility < 0.4 || rWrist.visibility < 0.4) return false;
-
-    // ระยะห่างมือต้องใกล้กันทั้งในแกน X, Y และ Z (ลึก)
     const dist3D = getDistance3D(lWrist, rWrist);
     if (dist3D > 0.15) return false; 
+    const elbowDist = Math.abs(lElbow.x - rElbow.x);
+    const shoulderDist = Math.abs(landmarks[11].x - landmarks[12].x);
+    if (elbowDist > shoulderDist * 1.5) return false; 
     return true;
 };
 
-// ==========================================
-// 🧘‍♂️ คลังท่าฤๅษีดัดตน
-// ==========================================
 const POSES = [
     {
         id: 0, name: 'ท่าแก้เกียจ (ด้านบน)', desc: 'ประสานมือ เหยียดแขนตึงขึ้นเหนือศีรษะ', arrow: '',
         image: 'https://img.youtube.com/vi/-jXm7wgOtYs/maxresdefault.jpg',
         check: (landmarks) => {
             if (!checkHandsClasped3D(landmarks)) return false;
-            
-            // แขนต้องเหยียดตึง (มุมข้อศอก > 140 องศา)
             const lAngle = getAngle(landmarks[11], landmarks[13], landmarks[15]);
             const rAngle = getAngle(landmarks[12], landmarks[14], landmarks[16]);
             if (lAngle < 140 || rAngle < 140) return false;
-
             const wristY = (landmarks[15].y + landmarks[16].y) / 2;
             const chinY = landmarks[152].y;
             return wristY < chinY - 0.05; 
@@ -79,25 +80,17 @@ const POSES = [
         image: 'https://img.youtube.com/vi/-jXm7wgOtYs/hqdefault.jpg',
         check: (landmarks) => {
             if (!checkHandsClasped3D(landmarks)) return false;
-            
-            // แขนต้องตึง > 140 องศา
             const lAngle = getAngle(landmarks[11], landmarks[13], landmarks[15]);
             const rAngle = getAngle(landmarks[12], landmarks[14], landmarks[16]);
             if (lAngle < 140 || rAngle < 140) return false;
-
             const wristY = (landmarks[15].y + landmarks[16].y) / 2;
             const shoulderY = (landmarks[11].y + landmarks[12].y) / 2;
             const isAtShoulderLevel = Math.abs(wristY - shoulderY) < 0.35; 
-            
             const wristX = (landmarks[15].x + landmarks[16].x) / 2;
             const isCentered = wristX > landmarks[12].x && wristX < landmarks[11].x;
-
-            // ตรวจสอบแกน Z: ข้อมือต้องอยู่ "ใกล้กล้อง" กว่าหัวไหล่ (กันโกงพับแขนแนบอก)
-            // ใน MediaPipe ค่า z ยิ่งติดลบ ยิ่งใกล้กล้อง
             const wristZ = (landmarks[15].z + landmarks[16].z) / 2;
             const shoulderZ = (landmarks[11].z + landmarks[12].z) / 2;
             const isExtendedForward = wristZ < shoulderZ - 0.15; 
-
             return isAtShoulderLevel && isCentered && isExtendedForward;
         }
     },
@@ -106,20 +99,15 @@ const POSES = [
         image: 'https://img.youtube.com/vi/-jXm7wgOtYs/maxresdefault.jpg', 
         check: (landmarks) => {
             if (!checkHandsClasped3D(landmarks)) return false;
-
-            // ท่าบิดตัว มุมแขนจะหลอกตาเล็กน้อย อนุโลมให้ตึงที่ 120 องศา
             const lAngle = getAngle(landmarks[11], landmarks[13], landmarks[15]);
             const rAngle = getAngle(landmarks[12], landmarks[14], landmarks[16]);
             if (lAngle < 120 && rAngle < 120) return false;
-
             const wristX = (landmarks[15].x + landmarks[16].x) / 2;
             const nose = landmarks[0];
-            const isTwistedRight = wristX < (nose.x - 0.15); // ต้องบิดเลยจมูกชัดเจน
-
+            const isTwistedRight = wristX < (nose.x - 0.15); 
             const wristY = (landmarks[15].y + landmarks[16].y) / 2;
             const shoulderY = (landmarks[11].y + landmarks[12].y) / 2;
             const isLevelOk = Math.abs(wristY - shoulderY) < 0.45;
-
             return isTwistedRight && isLevelOk;
         }
     },
@@ -128,19 +116,15 @@ const POSES = [
         image: 'https://img.youtube.com/vi/-jXm7wgOtYs/maxresdefault.jpg',
         check: (landmarks) => {
             if (!checkHandsClasped3D(landmarks)) return false;
-
             const lAngle = getAngle(landmarks[11], landmarks[13], landmarks[15]);
             const rAngle = getAngle(landmarks[12], landmarks[14], landmarks[16]);
             if (lAngle < 120 && rAngle < 120) return false;
-
             const wristX = (landmarks[15].x + landmarks[16].x) / 2;
             const nose = landmarks[0];
-            const isTwistedLeft = wristX > (nose.x + 0.15); // ต้องบิดเลยจมูกชัดเจน
-
+            const isTwistedLeft = wristX > (nose.x + 0.15); 
             const wristY = (landmarks[15].y + landmarks[16].y) / 2;
             const shoulderY = (landmarks[11].y + landmarks[12].y) / 2;
             const isLevelOk = Math.abs(wristY - shoulderY) < 0.45;
-
             return isTwistedLeft && isLevelOk;
         }
     }
@@ -167,10 +151,7 @@ function soundFail() { playTone(300, 'sawtooth', 0.5); }
 const createPoseLandmarker = async () => {
     const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, { 
-        baseOptions: { 
-            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`, 
-            delegate: "GPU" 
-        }, 
+        baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`, delegate: "GPU" }, 
         runningMode: "VIDEO", numPoses: 1 
     });
     btnStart.innerText = "เริ่มเกมจับท่าทาง!";
@@ -178,7 +159,6 @@ const createPoseLandmarker = async () => {
 };
 createPoseLandmarker();
 
-// Game Logic
 function addScore() {
     currentScore += 10;
     currentScoreDisplay.innerText = currentScore;
@@ -188,6 +168,74 @@ function addScore() {
         localStorage.setItem('ruesi_highscore_desktop', highScore);
     }
 }
+
+// ==========================================
+// 💡 ระบบตรวจสอบ Calibration
+// ==========================================
+function processCalibration(landmarks) {
+    // กำหนดพื้นที่ "กรอบรับคน" (ตรงกลางจอ)
+    // แกน X (ซ้ายขวา) จาก 30% ถึง 70% | แกน Y (บนล่าง) จาก 20% ถึง 80%
+    const isInsideBox = (point) => {
+        return point.x > 0.3 && point.x < 0.7 && point.y > 0.2 && point.y < 0.8;
+    };
+
+    // เช็คว่า ไหล่(11,12) และ สะโพก(23,24) อยู่ในกรอบหรือไม่
+    const lShoulder = landmarks[11]; const rShoulder = landmarks[12];
+    const lHip = landmarks[23]; const rHip = landmarks[24];
+
+    if (lShoulder.visibility > 0.6 && rShoulder.visibility > 0.6 && 
+        isInsideBox(lShoulder) && isInsideBox(rShoulder) && 
+        isInsideBox(lHip) && isInsideBox(rHip)) {
+        
+        // ยืนเข้ากรอบแล้ว
+        drawCalibrationGuide(true);
+        if (!isCalibrationReady) {
+            isCalibrationReady = true;
+            calibrationStartTime = Date.now();
+            soundTick();
+            updateStatusUI("✅ ยืนเข้าที่แล้ว! รอสักครู่...", 'success');
+        } else {
+            const elapsed = Date.now() - calibrationStartTime;
+            const progress = Math.min(elapsed / CALIBRATION_DURATION, 1);
+            
+            drawProgressRing(0.5, 0.5, progress, 'กรุณายืนนิ่งๆ'); // วาดวงแหวนกลางจอ
+
+            if (progress >= 1) {
+                // Calibrate สำเร็จ! เปลี่ยน State เข้าสู่โหมดเกม
+                gameState = STATE_PLAYING;
+                soundSuccess();
+                startNextRound(); 
+            }
+        }
+    } else {
+        // หลุดกรอบ
+        drawCalibrationGuide(false);
+        isCalibrationReady = false;
+        updateStatusUI("⚠️ กรุณายืนถอยหลัง ให้อยู่ในกรอบประ", 'warning');
+    }
+}
+
+function drawCalibrationGuide(isReady) {
+    const width = canvasElement.width * 0.4;
+    const height = canvasElement.height * 0.6;
+    const x = canvasElement.width * 0.3;
+    const y = canvasElement.height * 0.2;
+
+    canvasCtx.beginPath();
+    canvasCtx.rect(x, y, width, height);
+    canvasCtx.lineWidth = 6;
+    canvasCtx.setLineDash([20, 15]); // เส้นประ
+    canvasCtx.strokeStyle = isReady ? '#27ae60' : '#f39c12';
+    canvasCtx.stroke();
+    canvasCtx.setLineDash([]); // รีเซ็ตเส้นประ
+    
+    // ใส่ Text อธิบาย
+    canvasCtx.fillStyle = isReady ? '#27ae60' : '#f39c12'; 
+    canvasCtx.font = 'bold 30px Prompt'; 
+    canvasCtx.textAlign = 'center';
+    canvasCtx.fillText(isReady ? "ดีมาก" : "จุดเตรียมตัว", canvasElement.width / 2, y - 20);
+}
+
 
 function startNextRound() {
     let newIndex;
@@ -212,7 +260,8 @@ function startNextRound() {
 
     clearInterval(roundTimerInterval);
     roundTimerInterval = setInterval(() => {
-        if(playerFinishedRound) return; 
+        if(playerFinishedRound || gameState === STATE_CALIBRATING) return; 
+        
         roundTimeLeft--;
         timerFill.style.width = `${(roundTimeLeft / 15) * 100}%`;
         if(roundTimeLeft <= 5) timerFill.style.background = '#e74c3c';
@@ -231,9 +280,15 @@ function updateStatusUI(text, state) {
     if (state === 'success') {
         statusBanner.className = 'status-banner glass-panel success';
         cameraContainer.classList.add('correct-pose');
+        cameraContainer.style.borderColor = '#27ae60';
+    } else if (state === 'warning') {
+        statusBanner.className = 'status-banner glass-panel';
+        cameraContainer.classList.remove('correct-pose');
+        cameraContainer.style.borderColor = '#f39c12';
     } else {
         statusBanner.className = 'status-banner glass-panel';
         cameraContainer.classList.remove('correct-pose');
+        cameraContainer.style.borderColor = 'transparent';
     }
 }
 
@@ -249,15 +304,28 @@ async function renderLoop() {
 
             if (result.landmarks && result.landmarks.length > 0) {
                 const landmarks = result.landmarks[0]; 
-                if(!playerFinishedRound) {
-                    analyzePose(landmarks);
-                } else {
-                    drawSkeleton(landmarks, '#27ae60'); 
-                    drawStatusText(landmarks, "สุดยอด! ได้รับ 10 คะแนน 🌟");
+                
+                // State Machine Check
+                if (gameState === STATE_CALIBRATING) {
+                    processCalibration(landmarks);
+                    drawSkeleton(landmarks, 'rgba(255,255,255,0.5)'); // วาดเส้นบางๆ ตอนเตรียมตัว
+                } else if (gameState === STATE_PLAYING) {
+                    if(!playerFinishedRound) {
+                        analyzePose(landmarks);
+                    } else {
+                        drawSkeleton(landmarks, '#27ae60'); 
+                        drawStatusText(landmarks, "สุดยอด! ได้รับ 10 คะแนน 🌟");
+                    }
                 }
             } else {
-                if(!playerFinishedRound) updateStatusUI("ไม่พบร่างกายในกล้อง", 'normal');
+                if (gameState === STATE_CALIBRATING) {
+                    drawCalibrationGuide(false);
+                    updateStatusUI("⚠️ ไม่พบผู้ใช้งาน กรุณาเข้ากล้อง", 'warning');
+                } else if(!playerFinishedRound) {
+                    updateStatusUI("ไม่พบร่างกายในกล้อง", 'normal');
+                }
                 isHoldingPose = false;
+                isCalibrationReady = false;
             }
             canvasCtx.restore();
         });
@@ -279,12 +347,21 @@ function drawStatusText(landmarks, text) {
     canvasCtx.shadowBlur = 0; 
 }
 
-function drawProgressRing(x, y, progress) {
-    const cX = x * canvasElement.width; const cY = y * canvasElement.height;
-    canvasCtx.beginPath(); canvasCtx.arc(cX, cY, 60, 0, 2*Math.PI); canvasCtx.strokeStyle='rgba(255,255,255,0.3)'; canvasCtx.lineWidth=15; canvasCtx.stroke();
-    canvasCtx.beginPath(); canvasCtx.arc(cX, cY, 60, -Math.PI/2, (-Math.PI/2)+(2*Math.PI*progress)); canvasCtx.strokeStyle='#27ae60'; canvasCtx.lineCap='round'; canvasCtx.lineWidth=15; canvasCtx.stroke();
-    canvasCtx.fillStyle = '#FFF'; canvasCtx.font = 'bold 40px Prompt'; canvasCtx.textAlign = 'center'; canvasCtx.textBaseline = 'middle';
-    canvasCtx.fillText(Math.ceil(3 - (progress*3)), cX, cY);
+function drawProgressRing(xNorm, yNorm, progress, overrideText = null) {
+    const cX = xNorm * canvasElement.width; const cY = yNorm * canvasElement.height;
+    canvasCtx.beginPath(); canvasCtx.arc(cX, cY, 80, 0, 2*Math.PI); canvasCtx.strokeStyle='rgba(0,0,0,0.5)'; canvasCtx.lineWidth=15; canvasCtx.stroke();
+    canvasCtx.beginPath(); canvasCtx.arc(cX, cY, 80, -Math.PI/2, (-Math.PI/2)+(2*Math.PI*progress)); canvasCtx.strokeStyle='#27ae60'; canvasCtx.lineCap='round'; canvasCtx.lineWidth=15; canvasCtx.stroke();
+    
+    canvasCtx.fillStyle = '#FFF'; canvasCtx.font = 'bold 50px Prompt'; canvasCtx.textAlign = 'center'; canvasCtx.textBaseline = 'middle';
+    canvasCtx.shadowColor = "rgba(0,0,0,0.8)"; canvasCtx.shadowBlur = 10;
+    
+    if(overrideText) {
+         canvasCtx.font = 'bold 25px Prompt';
+         canvasCtx.fillText(overrideText, cX, cY);
+    } else {
+         canvasCtx.fillText(Math.ceil(3 - (progress*3)), cX, cY);
+    }
+    canvasCtx.shadowBlur = 0;
 }
 
 function analyzePose(landmarks) {
@@ -301,7 +378,11 @@ function analyzePose(landmarks) {
         } else {
             const elapsed = Date.now() - holdStartTime;
             const progress = Math.min(elapsed / HOLD_DURATION, 1);
-            drawProgressRing((landmarks[11].x+landmarks[12].x)/2, (landmarks[11].y+landmarks[12].y)/2, progress);
+            
+            // วาดวงแหวนที่หน้าอก
+            const chestX = (landmarks[11].x+landmarks[12].x)/2;
+            const chestY = (landmarks[11].y+landmarks[12].y)/2;
+            drawProgressRing(chestX, chestY, progress);
 
             if (progress >= 1) {
                 playerFinishedRound = true; 
@@ -327,7 +408,7 @@ btnStart.addEventListener('click', () => {
             videoElement.srcObject = stream;
             videoElement.addEventListener("loadeddata", () => {
                 isGameRunning = true;
-                startNextRound(); 
+                gameState = STATE_CALIBRATING; // เริ่มต้นที่การเตรียมตัวเสมอ
                 renderLoop();
             });
         }).catch(err => { statusText.innerText = "ไม่สามารถเข้าถึงกล้องได้"; });
