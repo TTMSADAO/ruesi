@@ -1,66 +1,67 @@
 :root {
-    --primary: #5d8aa8; --primary-hover: #4a6f8a;
-    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    --glass-bg: rgba(255, 255, 255, 0.85); --glass-border: rgba(255, 255, 255, 0.5);
-    --shadow-soft: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+    --primary: #2c3e50; --primary-hover: #1a252f;
+    --bg-gradient: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+    --glass-bg: rgba(255, 255, 255, 0.9); --glass-border: rgba(255, 255, 255, 0.6);
+    --shadow-soft: 0 10px 40px 0 rgba(31, 38, 135, 0.15);
     --text-main: #2c3e50; --text-light: #7f8c8d;
-    --success: #2ecc71; --warning: #f1c40f; --danger: #e74c3c;
+    --success: #27ae60; --warning: #f39c12; --danger: #e74c3c;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Prompt', sans-serif; background: var(--bg-gradient); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+body { font-family: 'Prompt', sans-serif; background: var(--bg-gradient); color: var(--text-main); height: 100vh; overflow: hidden; }
 
-.glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--glass-border); box-shadow: var(--shadow-soft); }
+.glass-panel { background: var(--glass-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--glass-border); box-shadow: var(--shadow-soft); }
 
-.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; transition: opacity 0.4s; }
+.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.75); display: flex; justify-content: center; align-items: center; z-index: 1000; transition: opacity 0.4s; }
 .overlay.hidden { opacity: 0; pointer-events: none; }
-.overlay-card { padding: 40px; border-radius: 30px; text-align: center; max-width: 90%; width: 450px; }
-.icon-large { font-size: 4rem; margin-bottom: 10px; }
-.overlay-card h2 { color: var(--primary); font-weight: 700; font-size: 2rem; margin-bottom: 10px; }
-.overlay-card p { color: var(--text-main); font-size: 1rem; margin-bottom: 20px; }
-.instruction-list { text-align: left; background: rgba(255,255,255,0.7); padding: 20px; border-radius: 16px; margin-bottom: 25px; }
-.instruction-list p { margin-bottom: 15px; font-weight: 400; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;}
-.instruction-list b { color: var(--success); }
+.overlay-card { padding: 50px; border-radius: 30px; text-align: center; max-width: 600px; width: 90%; }
+.icon-large { font-size: 5rem; margin-bottom: 15px; }
+.overlay-card h2 { color: var(--primary); font-weight: 700; font-size: 2.5rem; margin-bottom: 10px; }
+.overlay-card p { color: var(--text-main); font-size: 1.2rem; margin-bottom: 25px; }
+.instruction-list { text-align: left; background: rgba(255,255,255,0.8); padding: 25px; border-radius: 20px; margin-bottom: 30px; }
+.instruction-list p { margin-bottom: 15px; font-weight: 400; font-size: 1.2rem; display: flex; align-items: center; gap: 15px; }
 
-.btn-primary { background: var(--primary); color: white; border: none; padding: 18px 30px; font-size: 1.2rem; font-weight: 700; font-family: 'Prompt'; border-radius: 50px; cursor: pointer; width: 100%; box-shadow: 0 4px 15px rgba(93, 138, 168, 0.4); transition: 0.3s; }
-.btn-primary:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(93, 138, 168, 0.6); }
-.btn-primary:disabled { background: #bdc3c7; cursor: not-allowed; }
+.btn-primary { background: var(--success); color: white; border: none; padding: 20px 40px; font-size: 1.4rem; font-weight: 700; font-family: 'Prompt'; border-radius: 50px; cursor: pointer; width: 100%; transition: 0.3s; }
+.btn-primary:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(39, 174, 96, 0.5); }
+.btn-primary:disabled { background: #95a5a6; cursor: not-allowed; }
 
-.app-container { display: flex; flex-direction: column; height: 100%; max-width: 1000px; margin: 0 auto; width: 100%; padding: 15px; gap: 15px; }
-.app-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 25px; border-radius: 24px; z-index: 10; }
-.logo { display: flex; align-items: center; gap: 15px; }
-.logo-icon-bg { background: white; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); font-size: 1.8rem; }
-.logo-text h1 { font-size: 1.3rem; margin: 0; color: var(--text-main); font-weight: 700; }
-.logo-text span { font-size: 0.9rem; color: var(--primary); }
+/* โครงสร้าง Desktop (Side by Side) */
+.desktop-layout { display: flex; height: 100vh; padding: 20px; gap: 20px; max-width: 1600px; margin: 0 auto; }
 
-/* สไตล์ป้ายคะแนน */
-.score-board { display: flex; gap: 20px; background: rgba(255,255,255,0.5); padding: 8px 20px; border-radius: 20px; }
+/* แผงด้านซ้าย */
+.side-panel { width: 350px; border-radius: 30px; padding: 30px 20px; display: flex; flex-direction: column; gap: 25px; }
+.logo { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
+.logo-icon-bg { background: var(--success); color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 2rem; }
+.logo-text h1 { font-size: 1.6rem; margin: 0; font-weight: 700; }
+.logo-text span { font-size: 1rem; color: var(--text-light); }
+
+.score-board { display: flex; flex-direction: column; gap: 15px; background: rgba(0,0,0,0.03); padding: 20px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.05); }
 .score-item { display: flex; flex-direction: column; align-items: center; }
-.score-item span { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; font-weight: 600; }
-.score-item strong { font-size: 1.5rem; color: var(--text-main); font-weight: 700; line-height: 1; }
-.score-item.highlight strong { color: var(--warning); text-shadow: 0 2px 5px rgba(241, 196, 15, 0.3); }
+.score-item span { font-size: 1rem; color: var(--text-light); font-weight: 600; }
+.score-huge { font-size: 4rem; color: var(--success); font-weight: 700; line-height: 1; text-shadow: 0 4px 10px rgba(39, 174, 96, 0.2); }
+.score-item.highlight strong { font-size: 2rem; color: var(--warning); }
 
-.glass-btn { width: 50px; height: 50px; border-radius: 50%; font-size: 1.5rem; background: rgba(255,255,255,0.8); border: none; cursor: pointer; transition: 0.2s; }
+.pose-guide { background: white; border-radius: 20px; padding: 20px; text-align: center; border: 3px solid var(--primary); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+.pose-guide img { width: 100%; height: 200px; object-fit: cover; border-radius: 12px; margin-bottom: 15px; border: 1px solid #ddd; }
+.pose-info h3 { color: var(--primary); font-size: 1.4rem; margin: 0 0 5px 0; font-weight: 700; }
+.pose-info p { font-size: 1rem; color: var(--text-main); margin: 0; }
+.timer-bar { width: 100%; height: 10px; background: #eee; border-radius: 10px; margin-bottom: 15px; overflow: hidden; }
+.timer-fill { height: 100%; background: var(--success); width: 100%; transition: width 1s linear; }
 
+.glass-btn { margin-top: auto; padding: 15px; font-size: 1.1rem; border-radius: 15px; background: white; border: 1px solid #ccc; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.glass-btn:hover { background: #f0f0f0; }
+
+/* พื้นที่กล้อง */
 .game-area { flex: 1; display: flex; flex-direction: column; position: relative; }
-.camera-container { flex: 1; position: relative; border-radius: 30px; overflow: hidden; border: 4px solid transparent; transition: border-color 0.3s; }
-.camera-container.correct-pose { border-color: var(--success); box-shadow: 0 0 30px rgba(46, 204, 113, 0.4) inset; } /* ขอบเขียวเมื่อถูก */
+.camera-container { flex: 1; position: relative; border-radius: 30px; overflow: hidden; border: 8px solid transparent; transition: border-color 0.3s; background: #000; }
+.camera-container.correct-pose { border-color: var(--success); box-shadow: 0 0 50px rgba(39, 174, 96, 0.5) inset; }
 
 video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); z-index: 5; }
 
-/* ลูกศรชี้ทิศทาง */
-.direction-arrow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3rem; color: rgba(255,255,255,0.9); font-weight: 700; text-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 15; pointer-events: none; animation: pulse 1s infinite; }
+.direction-arrow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 5rem; color: white; font-weight: 700; text-shadow: 0 4px 20px rgba(0,0,0,0.8); z-index: 15; animation: pulse 1s infinite; background: rgba(0,0,0,0.3); padding: 20px 40px; border-radius: 100px;}
 .direction-arrow.hidden { display: none; }
 @keyframes pulse { 0% { transform: translate(-50%, -50%) scale(1); } 50% { transform: translate(-50%, -50%) scale(1.1); } 100% { transform: translate(-50%, -50%) scale(1); } }
 
-.pose-guide { position: absolute; top: 20px; right: 20px; border-radius: 20px; padding: 15px; width: 180px; z-index: 20; text-align: center; border: 2px solid var(--primary); }
-.pose-guide img { width: 100%; height: 130px; object-fit: cover; border-radius: 12px; margin-bottom: 10px; border: 2px solid #eee; }
-.pose-info h3 { color: var(--primary); font-size: 1.1rem; margin: 0 0 5px 0; font-weight: 700; }
-.pose-info p { font-size: 0.8rem; color: var(--text-main); margin: 0; line-height: 1.3; }
-
-.timer-bar { width: 100%; height: 8px; background: rgba(0,0,0,0.1); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
-.timer-fill { height: 100%; background: var(--success); width: 100%; transition: width 1s linear, background-color 0.3s; }
-
-.status-banner { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 15px 40px; border-radius: 50px; z-index: 10; font-size: 1.3rem; font-weight: 700; text-align: center; color: var(--text-main); transition: 0.3s; }
+.status-banner { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); padding: 20px 50px; border-radius: 50px; z-index: 10; font-size: 1.6rem; font-weight: 700; text-align: center; color: var(--text-main); transition: 0.3s; }
 .status-banner.success { background: var(--success); color: white; border: none; }
